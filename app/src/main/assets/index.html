@@ -18,21 +18,27 @@ const KEY='tkalfalah_rapor_v1';const EMPTY={"students":[],"assessments":[],"grow
 try {
   if (window.AndroidBridge) {
     const nativeData=JSON.parse(AndroidBridge.loadData()||'{}');
-    const hasNative=(nativeData.students||[]).length>0||(nativeData.assessments||[]).length>0||(nativeData.growth||[]).length>0||(nativeData.reports||[]).length>0||Object.keys(nativeData.settings||{}).length>0;
     const legacyText=localStorage.getItem(KEY);
-    if (!hasNative && legacyText) {
+    const hasNative=(nativeData.students||[]).length>0||(nativeData.assessments||[]).length>0||(nativeData.growth||[]).length>0||(nativeData.reports||[]).length>0||Object.keys(nativeData.settings||{}).length>0;
+    if (legacyText) {
       const legacy=JSON.parse(legacyText);
-      if (AndroidBridge.saveData(JSON.stringify(legacy))) {
-        db=legacy;
+      const mergeRows=(current,oldRows,keyOf)=>{
+        const rows=[...(current||[])],seen=new Set(rows.map(keyOf));
+        (oldRows||[]).forEach(row=>{const key=keyOf(row);if(!seen.has(key)){rows.push(row);seen.add(key);}});
+        return rows;
+      };
+      db={
+        students:mergeRows(nativeData.students,legacy.students,x=>x.id),
+        assessments:mergeRows(nativeData.assessments,legacy.assessments,x=>x.id),
+        growth:mergeRows(nativeData.growth,legacy.growth,x=>x.id||[x.student,x.date,x.weight,x.height].join('|')),
+        reports:mergeRows(nativeData.reports,legacy.reports,x=>[x.student,x.period].join('|')),
+        settings:Object.assign({},legacy.settings||{},nativeData.settings||{})
+      };
+      if (AndroidBridge.saveData(JSON.stringify(db))) {
+        db=JSON.parse(AndroidBridge.loadData());
         localStorage.removeItem(KEY);
-      } else {
-        db=legacy;
-        console.error('Migrasi data lama belum berhasil; cadangan localStorage dipertahankan.');
-      }
-    } else {
-      db=Object.assign(EMPTY,nativeData);
-      if (hasNative) localStorage.removeItem(KEY);
-    }
+      } else console.error('Migrasi belum berhasil; salinan data lama tetap dipertahankan.');
+    } else db=Object.assign({},EMPTY,nativeData);
   } else db=JSON.parse(localStorage.getItem(KEY)||JSON.stringify(EMPTY));
 } catch(e) { db=EMPTY; console.error('Database initialization failed',e); }
 const $=id=>document.getElementById(id);function persist(){let saved=true;if(window.AndroidBridge){saved=AndroidBridge.saveData(JSON.stringify(db));}else{localStorage.setItem(KEY,JSON.stringify(db));}if(!saved){alert('Data belum berhasil disimpan ke database. Silakan coba lagi.');return;}refresh()}

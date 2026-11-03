@@ -48,7 +48,41 @@ body.menu-open .side-menu{transform:translateX(0)}
 .side-menu nav button span{font-size:14px;font-weight:700}
 .side-menu nav button.active{background:linear-gradient(110deg,#14543a,#20704b);color:white;border-color:#c69b42;box-shadow:0 2px 0 #b78b35}
 body.menu-open{overflow:hidden}
+
+/* Responsive local sign-in and tactile button feedback */
+button{transition:transform .12s ease,filter .12s ease,box-shadow .12s ease;-webkit-tap-highlight-color:transparent}
+button:active{transform:scale(.965);filter:brightness(.94);box-shadow:0 1px 2px #102d1d2b}
+button:focus-visible{outline:3px solid #d9b85f;outline-offset:2px}
+.auth-screen{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:22px;background:linear-gradient(145deg,#103d2d,#1d6848 68%,#f5f7f3);overflow:auto}
+.auth-screen.hidden{display:none}
+.auth-card{width:min(420px,100%);background:#fff;border:1px solid #d8c17d;border-radius:20px;padding:25px 22px;box-shadow:0 18px 50px #061b1240}
+.auth-brand{font-size:11px;font-weight:900;letter-spacing:2px;color:#98732d}
+.auth-card h1{font-size:23px;color:#164c35;margin:10px 0 5px}
+.auth-card p{font-size:13px;color:#738078;margin:0 0 18px;line-height:1.5}
+.auth-card .btn{margin-top:18px}
+.auth-message{font-size:12px;color:#a13a2d;margin-top:12px;min-height:18px}
+.auth-message.ok{color:#17613d}
+.auth-card .auth-hint{font-size:11px;color:#738078;margin-top:12px}
 </style></head><body>
+
+<div id="loginGate" class="auth-screen">
+  <div class="auth-card">
+    <div class="auth-brand">E-RAPOR PAUD</div>
+    <h1 id="authTitle">Masuk ke aplikasi</h1>
+    <p id="authDescription">Masukkan username dan kata sandi administrator untuk melanjutkan.</p>
+    <label for="authUsername">Username</label>
+    <input id="authUsername" autocomplete="username" placeholder="Username" maxlength="32">
+    <label for="authPassword">Kata sandi</label>
+    <input id="authPassword" type="password" autocomplete="current-password" placeholder="Kata sandi">
+    <div id="authConfirmWrap" class="hidden">
+      <label for="authConfirm">Ulangi kata sandi</label>
+      <input id="authConfirm" type="password" autocomplete="new-password" placeholder="Ulangi kata sandi">
+      <div class="auth-hint">Buat username 3–32 karakter dan kata sandi minimal 10 karakter. Simpan kredensial dengan aman.</div>
+    </div>
+    <button class="btn" id="authSubmit" onclick="submitAuth()">Masuk</button>
+    <div id="authMessage" class="auth-message" role="status"></div>
+  </div>
+</div>
 <header><div class="topline"><div class="brand" id="brandName">E-RAPOR PAUD · RAPOR DIGITAL</div><button class="burger" id="menuToggle" aria-label="Buka menu" aria-expanded="false" onclick="toggleMenu()">☰</button></div><div class="hello">Assalamu’alaikum warahmatullahi wabarakatuh</div><div class="sub">Pengelolaan perkembangan peserta didik</div></header>
 <div class="menu-shade" id="menuShade" onclick="closeMenu()"></div>
 <aside class="side-menu" id="sideMenu" aria-hidden="true"><div class="menu-head"><div><b>Menu Utama</b><small>E-RAPOR PAUD</small></div><button class="menu-close" aria-label="Tutup menu" onclick="closeMenu()">×</button></div><nav id="mainNav"><button class="active" data-page="dashboard" onclick="show('dashboard',this)">⌂ <span>Beranda</span></button><button data-page="students" onclick="show('students',this)">♙ <span>Data Peserta Didik</span></button><button data-page="assessment" onclick="show('assessment',this)">✎ <span>Asesmen</span></button><button data-page="report" onclick="show('report',this)">▤ <span>Rapor</span></button><button data-page="growth" onclick="show('growth',this)">♡ <span>Pertumbuhan</span></button><button data-page="settings" onclick="show('settings',this)">⚙ <span>Pengaturan</span></button></nav></aside>
@@ -60,7 +94,7 @@ body.menu-open{overflow:hidden}
 <section id="assessment" class="hidden"><div class="card"><h2>Catatan asesmen</h2><label>Peserta didik</label><select id="assessmentStudent"></select><label>Elemen CP</label><select id="element"><option>Nilai Agama dan Budi Pekerti</option><option>Jati Diri</option><option>Dasar-Dasar Literasi, Matematika, Sains, Teknologi, Rekayasa, dan Seni</option></select><label>Konteks / kegiatan pengamatan</label><input id="context" placeholder="Contoh: kegiatan bermain balok"><label>Capaian yang teramati</label><textarea id="observation" placeholder="Tuliskan perilaku atau kemampuan yang benar-benar diamati"></textarea><label>Rencana stimulasi berikutnya</label><textarea id="stimulation" placeholder="Dukungan atau kegiatan lanjutan"></textarea><label>Kategori perkembangan (opsional)</label><select id="level"><option value="">Tidak ditentukan</option><option>BB</option><option>MB</option><option>BSH</option><option>BSB</option></select><button class="btn" onclick="addAssessment()">Simpan catatan asesmen</button></div><div class="card section"><h2>Riwayat catatan</h2><div id="assessmentList" class="muted">Belum ada catatan.</div></div></section>
 <section id="report" class="hidden"><div class="card"><h2>Penyusunan rapor</h2><label>Peserta didik</label><select id="reportStudent" onchange="loadReport()"></select><div id="reportPreview" class="muted">Pilih peserta didik untuk melihat ringkasan.</div><label>Deskripsi capaian pembelajaran (otomatis, dapat diedit)</label><textarea id="autoDescription" placeholder="Deskripsi akan disusun dari catatan asesmen. Guru dapat mengeditnya."></textarea><button class="btn secondary no-print" onclick="generateDescription()">Buat ulang deskripsi otomatis</button><label>Catatan umum guru</label><textarea id="teacherNote" placeholder="Catatan perkembangan anak secara menyeluruh"></textarea><label>Rekomendasi untuk orang tua</label><textarea id="parentNote" placeholder="Saran stimulasi di rumah"></textarea><div class="actions no-print"><button class="btn" onclick="saveReport()">Simpan rapor</button><button class="btn" onclick="printReport()">Cetak / PDF</button></div></div></section>
 <section id="growth" class="hidden"><div class="card"><h2>Pertumbuhan anak</h2><label>Peserta didik</label><select id="growthStudent"></select><label>Tanggal pengukuran</label><input id="measureDate" type="date"><label>Berat badan (kg)</label><input id="weight" type="number" step=".1"><label>Tinggi badan (cm)</label><input id="height" type="number" step=".1"><button class="btn" onclick="addGrowth()">Simpan pengukuran</button></div><div class="card section"><h2>Riwayat pertumbuhan</h2><div id="growthList" class="muted">Belum ada data.</div></div></section>
-<section id="settings" class="hidden"><div class="card"><h2>Identitas satuan pendidikan</h2><label>Nama sekolah</label><input id="schoolName" placeholder="Nama satuan pendidikan"><label>Nama guru</label><input id="teacherName" placeholder="Nama guru"><label>Nama kepala sekolah</label><input id="principalName" placeholder="Nama kepala sekolah"><button class="btn" onclick="saveSettings()">Simpan pengaturan</button></div><div class="card section"><h2>Backup otomatis Google Drive</h2><div class="muted" id="driveBackupStatus">Pilih folder Google Drive dan atur kata sandi backup untuk mengaktifkan pencadangan otomatis.</div><button class="btn secondary" onclick="connectDrive()">Pilih folder Google Drive</button><label>Kata sandi enkripsi backup (minimal 10 karakter)</label><input id="backupPassword" type="password" autocomplete="new-password" placeholder="Buat kata sandi backup"><button class="btn secondary" onclick="saveBackupPassword()">Simpan kata sandi backup</button><button class="btn secondary" onclick="refreshBackupStatus()">Periksa status backup</button><div class="muted">Setiap perubahan data akan dijadwalkan untuk dicadangkan saat internet tersedia. File di Google Drive terenkripsi. Simpan kata sandi ini di tempat aman.</div></div><div class="card section"><h2>Cadangan manual</h2><button class="btn secondary" onclick="exportBackup()">Ekspor JSON (tanpa enkripsi)</button><label>Impor cadangan JSON atau backup terenkripsi (.rta)</label><input id="backupFile" type="file" accept=".json,.rta,text/plain,application/json" onchange="importBackup(event)"></div></section>
+<section id="settings" class="hidden"><div class="card section"><h2>Keamanan akun administrator</h2><div class="muted">Ubah username atau kata sandi masuk aplikasi. Perubahan memerlukan kata sandi saat ini.</div><label>Kata sandi saat ini</label><input id="currentAdminPassword" type="password" autocomplete="current-password" placeholder="Kata sandi saat ini"><label>Username baru</label><input id="newAdminUsername" autocomplete="username" maxlength="32" placeholder="Username baru"><label>Kata sandi baru (minimal 10 karakter)</label><input id="newAdminPassword" type="password" autocomplete="new-password" placeholder="Kata sandi baru"><label>Ulangi kata sandi baru</label><input id="confirmAdminPassword" type="password" autocomplete="new-password" placeholder="Ulangi kata sandi baru"><button class="btn" onclick="changeAdminCredentials()">Simpan username dan kata sandi</button><div class="muted" id="accountChangeStatus"></div></div><div class="card section"><h2>Identitas satuan pendidikan</h2><label>Nama sekolah</label><input id="schoolName" placeholder="Nama satuan pendidikan"><label>Nama guru</label><input id="teacherName" placeholder="Nama guru"><label>Nama kepala sekolah</label><input id="principalName" placeholder="Nama kepala sekolah"><button class="btn" onclick="saveSettings()">Simpan pengaturan</button></div><div class="card section"><h2>Backup otomatis Google Drive</h2><div class="muted" id="driveBackupStatus">Pilih folder Google Drive dan atur kata sandi backup untuk mengaktifkan pencadangan otomatis.</div><button class="btn secondary" onclick="connectDrive()">Pilih folder Google Drive</button><label>Kata sandi enkripsi backup (minimal 10 karakter)</label><input id="backupPassword" type="password" autocomplete="new-password" placeholder="Buat kata sandi backup"><button class="btn secondary" onclick="saveBackupPassword()">Simpan kata sandi backup</button><button class="btn secondary" onclick="refreshBackupStatus()">Periksa status backup</button><div class="muted">Setiap perubahan data akan dijadwalkan untuk dicadangkan saat internet tersedia. File di Google Drive terenkripsi. Simpan kata sandi ini di tempat aman.</div></div><div class="card section"><h2>Cadangan manual</h2><button class="btn secondary" onclick="exportBackup()">Ekspor JSON (tanpa enkripsi)</button><label>Impor cadangan JSON atau backup terenkripsi (.rta)</label><input id="backupFile" type="file" accept=".json,.rta,text/plain,application/json" onchange="importBackup(event)"></div></section>
 <footer>E-RAPOR PAUD · Versi pengembangan 0.5.0</footer></main>
 <script>
 const KEY='tkalfalah_rapor_v1';const EMPTY={"students":[],"assessments":[],"growth":[],"reports":[],"settings":{}};let db=EMPTY;
@@ -95,6 +129,45 @@ try {
   } else db=JSON.parse(localStorage.getItem(KEY)||JSON.stringify(EMPTY));
 } catch(e) { db=EMPTY; console.error('Database initialization failed',e); }
 const $=id=>document.getElementById(id);function uid(){if(window.crypto&&typeof window.crypto.randomUUID==='function')return window.crypto.randomUUID();return 'id-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)+'-'+Math.random().toString(36).slice(2)}function persist(){let saved=true;if(window.AndroidBridge){saved=AndroidBridge.saveData(JSON.stringify(db));}else{localStorage.setItem(KEY,JSON.stringify(db));}if(!saved){alert('Data belum berhasil disimpan ke database. Silakan coba lagi.');return false;}refresh();return true}
+
+let authMode='login';
+function initAuth(){
+  if(!window.AndroidBridge){$('loginGate').classList.add('hidden');return;}
+  const exists=AndroidBridge.hasAdminAccount();
+  authMode=exists?'login':'setup';
+  $('authTitle').textContent=exists?'Masuk ke aplikasi':'Buat akun administrator';
+  $('authDescription').textContent=exists?'Masukkan username dan kata sandi administrator untuk melanjutkan.':'Buat akun administrator pertama. Akun ini digunakan untuk membuka aplikasi di perangkat ini.';
+  $('authConfirmWrap').classList.toggle('hidden',exists);
+  $('authSubmit').textContent=exists?'Masuk':'Buat akun dan lanjutkan';
+  $('authPassword').autocomplete=exists?'current-password':'new-password';
+  $('authMessage').textContent='';
+}
+function submitAuth(){
+  const username=$('authUsername').value.trim(),password=$('authPassword').value;
+  if(!username||!password){$('authMessage').textContent='Isi username dan kata sandi.';return;}
+  if(authMode==='setup'){
+    if(username.length<3||username.length>32){$('authMessage').textContent='Username harus 3–32 karakter.';return;}
+    if(password.length<10){$('authMessage').textContent='Kata sandi minimal 10 karakter.';return;}
+    if(password!==$('authConfirm').value){$('authMessage').textContent='Konfirmasi kata sandi tidak sama.';return;}
+    if(!AndroidBridge.setupAdmin(username,password)){$('authMessage').textContent='Pembuatan akun gagal. Gunakan username huruf/angka dan . _ - saja.';return;}
+  }else if(!AndroidBridge.authenticate(username,password)){
+    $('authMessage').textContent='Username atau kata sandi salah.';return;
+  }
+  $('authMessage').textContent='Berhasil. Membuka aplikasi…';$('authMessage').classList.add('ok');
+  $('loginGate').classList.add('hidden');
+  $('authPassword').value='';$('authConfirm').value='';
+}
+function changeAdminCredentials(){
+  const current=$('currentAdminPassword').value,newUser=$('newAdminUsername').value.trim(),newPass=$('newAdminPassword').value,confirmPass=$('confirmAdminPassword').value;
+  const status=$('accountChangeStatus');status.textContent='';
+  if(!current||!newUser||!newPass){status.textContent='Lengkapi semua kolom.';return;}
+  if(newUser.length<3||newUser.length>32){status.textContent='Username harus 3–32 karakter.';return;}
+  if(newPass.length<10){status.textContent='Kata sandi baru minimal 10 karakter.';return;}
+  if(newPass!==confirmPass){status.textContent='Konfirmasi kata sandi baru tidak sama.';return;}
+  if(!window.AndroidBridge||!AndroidBridge.changeAdminCredentials(current,newUser,newPass)){status.textContent='Gagal mengubah akun. Periksa kata sandi saat ini dan gunakan username huruf/angka serta . _ -.';return;}
+  ['currentAdminPassword','newAdminUsername','newAdminPassword','confirmAdminPassword'].forEach(id=>$(id).value='');
+  status.textContent='Username dan kata sandi berhasil diperbarui.';status.style.color='#17613d';
+}
 function toggleMenu(){const open=!document.body.classList.contains('menu-open');document.body.classList.toggle('menu-open',open);$('menuToggle').setAttribute('aria-expanded',String(open));$('sideMenu').setAttribute('aria-hidden',String(!open))}
 function closeMenu(){document.body.classList.remove('menu-open');$('menuToggle').setAttribute('aria-expanded','false');$('sideMenu').setAttribute('aria-hidden','true')}
 function show(id,btn){document.querySelectorAll('main>section').forEach(s=>s.classList.add('hidden'));$(id).classList.remove('hidden');document.querySelectorAll('#mainNav button').forEach(b=>b.classList.remove('active'));const active=btn||document.querySelector('#mainNav button[data-page="'+id+'"]');if(active)active.classList.add('active');closeMenu();refresh()}
@@ -118,5 +191,5 @@ function importBackup(e){let f=e.target.files[0];if(!f)return;let r=new FileRead
 function connectDrive(){if(!window.AndroidBridge)return alert('Fitur ini hanya tersedia di APK Android.');AndroidBridge.chooseDriveFolder()}
 function saveBackupPassword(){let p=$('backupPassword').value;if(p.length<10)return alert('Kata sandi minimal 10 karakter.');if(!window.AndroidBridge||!AndroidBridge.setBackupPassword(p))return alert('Kata sandi backup gagal disimpan.');$('backupPassword').value='';alert('Kata sandi tersimpan. Backup otomatis akan dijalankan saat internet tersedia.');refreshBackupStatus()}
 function refreshBackupStatus(){if(!window.AndroidBridge)return;try{let s=JSON.parse(AndroidBridge.backupStatus());$('driveBackupStatus').textContent='Folder Google Drive: '+(s.folder?'terhubung':'belum dipilih')+' · Kata sandi: '+(s.password?'sudah diatur':'belum diatur')+' · Backup terakhir: '+(s.lastBackup||'belum ada')}catch(e){$('driveBackupStatus').textContent='Status backup belum dapat dibaca.'}}
-if(db.settings.schoolName)$('schoolName').value=db.settings.schoolName;if(db.settings.teacherName)$('teacherName').value=db.settings.teacherName;if(db.settings.principalName)$('principalName').value=db.settings.principalName;if(db.settings.schoolYear)$('schoolYear').value=db.settings.schoolYear;if(db.settings.semester)$('semester').value=db.settings.semester;refresh();refreshBackupStatus();
+if(db.settings.schoolName)$('schoolName').value=db.settings.schoolName;if(db.settings.teacherName)$('teacherName').value=db.settings.teacherName;if(db.settings.principalName)$('principalName').value=db.settings.principalName;if(db.settings.schoolYear)$('schoolYear').value=db.settings.schoolYear;if(db.settings.semester)$('semester').value=db.settings.semester;refresh();refreshBackupStatus();initAuth();
 </script></body></html>

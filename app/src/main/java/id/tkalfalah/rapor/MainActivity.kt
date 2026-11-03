@@ -39,7 +39,7 @@ class MainActivity : Activity() {
             webViewClient = object : WebViewClient() {
                 override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                     val uri: Uri = request?.url ?: return true
-                    return uri.scheme != "file"
+                    return uri.scheme != "file" || !uri.path.orEmpty().startsWith("/android_asset/")
                 }
             }
             webChromeClient = object : WebChromeClient() {

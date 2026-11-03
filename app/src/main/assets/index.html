@@ -65,24 +65,6 @@ button:focus-visible{outline:3px solid #d9b85f;outline-offset:2px}
 .auth-card .auth-hint{font-size:11px;color:#738078;margin-top:12px}
 </style></head><body>
 
-<div id="loginGate" class="auth-screen">
-  <div class="auth-card">
-    <div class="auth-brand">E-RAPOR PAUD</div>
-    <h1 id="authTitle">Masuk ke aplikasi</h1>
-    <p id="authDescription">Masukkan username dan kata sandi administrator untuk melanjutkan.</p>
-    <label for="authUsername">Username</label>
-    <input id="authUsername" autocomplete="username" placeholder="Username" maxlength="32">
-    <label for="authPassword">Kata sandi</label>
-    <input id="authPassword" type="password" autocomplete="current-password" placeholder="Kata sandi">
-    <div id="authConfirmWrap" class="hidden">
-      <label for="authConfirm">Ulangi kata sandi</label>
-      <input id="authConfirm" type="password" autocomplete="new-password" placeholder="Ulangi kata sandi">
-      <div class="auth-hint">Buat username 3–32 karakter dan kata sandi minimal 10 karakter. Simpan kredensial dengan aman.</div>
-    </div>
-    <button class="btn" id="authSubmit" onclick="submitAuth()">Masuk</button>
-    <div id="authMessage" class="auth-message" role="status"></div>
-  </div>
-</div>
 <header><div class="topline"><div class="brand" id="brandName">E-RAPOR PAUD · RAPOR DIGITAL</div><button class="burger" id="menuToggle" aria-label="Buka menu" aria-expanded="false" onclick="toggleMenu()">☰</button></div><div class="hello">Assalamu’alaikum warahmatullahi wabarakatuh</div><div class="sub">Pengelolaan perkembangan peserta didik</div></header>
 <div class="menu-shade" id="menuShade" onclick="closeMenu()"></div>
 <aside class="side-menu" id="sideMenu" aria-hidden="true"><div class="menu-head"><div><b>Menu Utama</b><small>E-RAPOR PAUD</small></div><button class="menu-close" aria-label="Tutup menu" onclick="closeMenu()">×</button></div><nav id="mainNav"><button class="active" data-page="dashboard" onclick="show('dashboard',this)">⌂ <span>Beranda</span></button><button data-page="students" onclick="show('students',this)">♙ <span>Data Peserta Didik</span></button><button data-page="assessment" onclick="show('assessment',this)">✎ <span>Asesmen</span></button><button data-page="report" onclick="show('report',this)">▤ <span>Rapor</span></button><button data-page="growth" onclick="show('growth',this)">♡ <span>Pertumbuhan</span></button><button data-page="settings" onclick="show('settings',this)">⚙ <span>Pengaturan</span></button></nav></aside>
@@ -131,8 +113,8 @@ try {
 const $=id=>document.getElementById(id);function uid(){if(window.crypto&&typeof window.crypto.randomUUID==='function')return window.crypto.randomUUID();return 'id-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)+'-'+Math.random().toString(36).slice(2)}function persist(){let saved=true;if(window.AndroidBridge){saved=AndroidBridge.saveData(JSON.stringify(db));}else{localStorage.setItem(KEY,JSON.stringify(db));}if(!saved){alert('Data belum berhasil disimpan ke database. Silakan coba lagi.');return false;}refresh();return true}
 
 let authMode='login';
-function initAuth(){
-  if(!window.AndroidBridge){$('loginGate').classList.add('hidden');return;}
+function initAuth(){return; /* Login dinonaktifkan selama masa pengujian. */
+  if(!window.AndroidBridge){return;}
   const exists=AndroidBridge.hasAdminAccount();
   authMode=exists?'login':'setup';
   $('authTitle').textContent=exists?'Masuk ke aplikasi':'Buat akun administrator';
@@ -154,7 +136,6 @@ function submitAuth(){
     $('authMessage').textContent='Username atau kata sandi salah.';return;
   }
   $('authMessage').textContent='Berhasil. Membuka aplikasi…';$('authMessage').classList.add('ok');
-  $('loginGate').classList.add('hidden');
   $('authPassword').value='';$('authConfirm').value='';
 }
 function changeAdminCredentials(){

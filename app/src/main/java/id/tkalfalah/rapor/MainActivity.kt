@@ -54,7 +54,7 @@ class MainActivity : Activity() {
                         addCategory(Intent.CATEGORY_OPENABLE)
                         type = "application/json"
                     }
-                    startActivityForResult(intent, REQUEST_IMPORT_JSON)
+                    this@MainActivity.startActivityForResult(intent, REQUEST_IMPORT_JSON)
                     return true
                 }
             }
@@ -80,7 +80,7 @@ class MainActivity : Activity() {
                     type = "application/json"
                     putExtra(Intent.EXTRA_TITLE, "backup-rapor-tk-alfalah.json")
                 }
-                startActivityForResult(intent, REQUEST_EXPORT_JSON)
+                this@MainActivity.startActivityForResult(intent, REQUEST_EXPORT_JSON)
             }
         }
 

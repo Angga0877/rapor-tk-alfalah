@@ -7,6 +7,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: rapor-tk-alfalah-apk
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest

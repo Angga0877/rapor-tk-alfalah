@@ -21,6 +21,11 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import java.util.concurrent.TimeUnit
+import java.security.MessageDigest
+import java.security.SecureRandom
+import javax.crypto.SecretKeyFactory
+import javax.crypto.spec.PBEKeySpec
+import android.util.Base64
 
 class MainActivity : Activity() {
     private lateinit var web: WebView
@@ -33,6 +38,8 @@ class MainActivity : Activity() {
         private const val REQUEST_EXPORT_JSON = 4102
         private const val REQUEST_DRIVE_FOLDER = 4103
         private const val BACKUP_WORK = "rapor_tk_drive_backup"
+        private const val AUTH_PREFS = "local_admin_auth"
+        private const val AUTH_ITERATIONS = 180000
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -73,6 +80,63 @@ class MainActivity : Activity() {
     }
 
     inner class NativeBridge {
+
+        @JavascriptInterface
+        fun hasAdminAccount(): Boolean {
+            val p = getSharedPreferences(AUTH_PREFS, MODE_PRIVATE)
+            return !p.getString("username", null).isNullOrBlank() &&
+                !p.getString("password_hash", null).isNullOrBlank()
+        }
+
+        @JavascriptInterface
+        fun setupAdmin(username: String, password: String): Boolean {
+            val cleanUser = username.trim()
+            if (cleanUser.length !in 3..32 || !cleanUser.matches(Regex("[A-Za-z0-9._-]+")) || password.length < 10) return false
+            val p = getSharedPreferences(AUTH_PREFS, MODE_PRIVATE)
+            if (!p.getString("username", null).isNullOrBlank()) return false
+            return try {
+                val salt = ByteArray(16).also { SecureRandom().nextBytes(it) }
+                val hash = derivePassword(password, salt)
+                p.edit().putString("username", cleanUser)
+                    .putString("salt", Base64.encodeToString(salt, Base64.NO_WRAP))
+                    .putString("password_hash", Base64.encodeToString(hash, Base64.NO_WRAP))
+                    .apply()
+                true
+            } catch (_: Exception) { false }
+        }
+
+        @JavascriptInterface
+        fun authenticate(username: String, password: String): Boolean {
+            val p = getSharedPreferences(AUTH_PREFS, MODE_PRIVATE)
+            val storedUser = p.getString("username", null) ?: return false
+            val saltText = p.getString("salt", null) ?: return false
+            val hashText = p.getString("password_hash", null) ?: return false
+            if (!storedUser.equals(username.trim(), ignoreCase = true)) return false
+            return try {
+                val salt = Base64.decode(saltText, Base64.NO_WRAP)
+                val expected = Base64.decode(hashText, Base64.NO_WRAP)
+                MessageDigest.isEqual(expected, derivePassword(password, salt))
+            } catch (_: Exception) { false }
+        }
+
+        @JavascriptInterface
+        fun changeAdminCredentials(currentPassword: String, newUsername: String, newPassword: String): Boolean {
+            val cleanUser = newUsername.trim()
+            if (cleanUser.length !in 3..32 || !cleanUser.matches(Regex("[A-Za-z0-9._-]+")) || newPassword.length < 10) return false
+            val oldUser = getSharedPreferences(AUTH_PREFS, MODE_PRIVATE).getString("username", "").orEmpty()
+            if (!authenticate(oldUser, currentPassword)) return false
+            return try {
+                val salt = ByteArray(16).also { SecureRandom().nextBytes(it) }
+                val hash = derivePassword(newPassword, salt)
+                getSharedPreferences(AUTH_PREFS, MODE_PRIVATE).edit()
+                    .putString("username", cleanUser)
+                    .putString("salt", Base64.encodeToString(salt, Base64.NO_WRAP))
+                    .putString("password_hash", Base64.encodeToString(hash, Base64.NO_WRAP))
+                    .apply()
+                true
+            } catch (_: Exception) { false }
+        }
+
         @JavascriptInterface
         fun loadData(): String = database.loadData()
 
@@ -172,6 +236,16 @@ class MainActivity : Activity() {
                 }
             }
             pendingBackup = null
+        }
+    }
+
+
+    private fun derivePassword(password: String, salt: ByteArray): ByteArray {
+        val spec = PBEKeySpec(password.toCharArray(), salt, AUTH_ITERATIONS, 256)
+        return try {
+            SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded
+        } finally {
+            spec.clearPassword()
         }
     }
 

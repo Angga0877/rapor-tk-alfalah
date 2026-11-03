@@ -18,14 +18,21 @@ const KEY='tkalfalah_rapor_v1';const EMPTY={"students":[],"assessments":[],"grow
 try {
   if (window.AndroidBridge) {
     const nativeData=JSON.parse(AndroidBridge.loadData()||'{}');
-    const hasNative=(nativeData.students||[]).length>0||(nativeData.assessments||[]).length>0||(nativeData.reports||[]).length>0;
+    const hasNative=(nativeData.students||[]).length>0||(nativeData.assessments||[]).length>0||(nativeData.growth||[]).length>0||(nativeData.reports||[]).length>0||Object.keys(nativeData.settings||{}).length>0;
     const legacyText=localStorage.getItem(KEY);
     if (!hasNative && legacyText) {
       const legacy=JSON.parse(legacyText);
-      if (AndroidBridge.saveData(JSON.stringify(legacy))) db=legacy;
-      else db=nativeData;
-    } else db=Object.assign(EMPTY,nativeData);
-    localStorage.removeItem(KEY);
+      if (AndroidBridge.saveData(JSON.stringify(legacy))) {
+        db=legacy;
+        localStorage.removeItem(KEY);
+      } else {
+        db=legacy;
+        console.error('Migrasi data lama belum berhasil; cadangan localStorage dipertahankan.');
+      }
+    } else {
+      db=Object.assign(EMPTY,nativeData);
+      if (hasNative) localStorage.removeItem(KEY);
+    }
   } else db=JSON.parse(localStorage.getItem(KEY)||JSON.stringify(EMPTY));
 } catch(e) { db=EMPTY; console.error('Database initialization failed',e); }
 const $=id=>document.getElementById(id);function persist(){let saved=true;if(window.AndroidBridge){saved=AndroidBridge.saveData(JSON.stringify(db));}else{localStorage.setItem(KEY,JSON.stringify(db));}if(!saved){alert('Data belum berhasil disimpan ke database. Silakan coba lagi.');return;}refresh()}

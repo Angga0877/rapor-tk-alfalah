@@ -60,7 +60,7 @@ class MainActivity : Activity() {
                     filePathCallback = callback
                     val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
                         addCategory(Intent.CATEGORY_OPENABLE)
-                        type = "application/json"
+                        type = "*/*"
                     }
                     this@MainActivity.startActivityForResult(intent, REQUEST_IMPORT_JSON)
                     return true

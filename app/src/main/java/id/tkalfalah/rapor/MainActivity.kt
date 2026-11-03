@@ -6,7 +6,7 @@ import android.os.Bundle
 import android.print.PrintAttributes
 import android.print.PrintManager
 import android.webkit.JavascriptInterface
-import android.webkit.WebChromeClient
+import android.webkit.WebChromeClient\nimport android.webkit.WebResourceRequest\nimport android.net.Uri
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -24,7 +24,12 @@ class MainActivity : Activity() {
             settings.allowFileAccess = true
             settings.allowContentAccess = false
             settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
-            webViewClient = WebViewClient()
+            webViewClient = object : WebViewClient() {
+                override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                    val uri: Uri = request?.url ?: return true
+                    return uri.scheme != "file"
+                }
+            }
             webChromeClient = WebChromeClient()
             addJavascriptInterface(NativeBridge(), "AndroidBridge")
         }
@@ -55,7 +60,7 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
-        if (this::web.isInitialized) web.destroy()
+        if (this::web.isInitialized) {\n            web.removeJavascriptInterface("AndroidBridge")\n            web.destroy()\n        }
         super.onDestroy()
     }
 }

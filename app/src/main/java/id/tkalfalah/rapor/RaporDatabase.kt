@@ -10,15 +10,15 @@ import org.json.JSONObject
 class RaporDatabase(context: Context) : SQLiteOpenHelper(context, "rapor_tk_alfalah.db", null, 1) {
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("""CREATE TABLE students(id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, nis TEXT, group_name TEXT, dob TEXT)""")
-        db.execSQL("""CREATE TABLE assessments(id TEXT PRIMARY KEY NOT NULL, student_id TEXT NOT NULL, element TEXT, context_note TEXT, observation TEXT, stimulation TEXT, level TEXT, date TEXT)""")
+        db.execSQL("""CREATE TABLE assessments(id TEXT PRIMARY KEY NOT NULL, student_id TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE, element TEXT, context_note TEXT, observation TEXT, stimulation TEXT, level TEXT, date TEXT)""")
         db.execSQL("""CREATE INDEX idx_assessments_student ON assessments(student_id)""")
-        db.execSQL("""CREATE TABLE growth(id INTEGER PRIMARY KEY AUTOINCREMENT, student_id TEXT NOT NULL, date TEXT, weight TEXT, height TEXT)""")
+        db.execSQL("""CREATE TABLE growth(id TEXT PRIMARY KEY NOT NULL, student_id TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE, date TEXT, weight TEXT, height TEXT)""")
         db.execSQL("""CREATE INDEX idx_growth_student ON growth(student_id)""")
-        db.execSQL("""CREATE TABLE reports(student_id TEXT PRIMARY KEY NOT NULL, auto_description TEXT, teacher_note TEXT, parent_note TEXT, period TEXT)""")
+        db.execSQL("""CREATE TABLE reports(student_id TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE, period TEXT NOT NULL, auto_description TEXT, teacher_note TEXT, parent_note TEXT, PRIMARY KEY(student_id, period))""")
         db.execSQL("""CREATE TABLE settings(setting_key TEXT PRIMARY KEY NOT NULL, setting_value TEXT)""")
     }
 
-    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+    override fun onConfigure(db: SQLiteDatabase) {\n        db.setForeignKeyConstraintsEnabled(true)\n    }\n\n    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         // Tambahkan migrasi skema terurut di sini saat versi database dinaikkan.
     }
 
@@ -98,7 +98,7 @@ class RaporDatabase(context: Context) : SQLiteOpenHelper(context, "rapor_tk_alfa
                 for (i in 0 until reports.length()) {
                     val x = reports.optJSONObject(i) ?: continue
                     val v = ContentValues().apply {
-                        put("student_id", x.optString("student")); put("auto_description", x.optString("autoDescription"))
+                        put("student_id", x.optString("student")); put("period", x.optString("period"))\n                        put("auto_description", x.optString("autoDescription"))
                         put("teacher_note", x.optString("teacherNote")); put("parent_note", x.optString("parentNote"))
                         put("period", x.optString("period"))
                     }

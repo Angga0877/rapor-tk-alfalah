@@ -2,11 +2,13 @@ package id.tkalfalah.rapor
 
 import android.app.Activity
 import android.content.Context
+import android.net.Uri
 import android.os.Bundle
 import android.print.PrintAttributes
 import android.print.PrintManager
 import android.webkit.JavascriptInterface
-import android.webkit.WebChromeClient\nimport android.webkit.WebResourceRequest\nimport android.net.Uri
+import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -20,7 +22,7 @@ class MainActivity : Activity() {
         database = RaporDatabase(applicationContext)
         web = WebView(this).apply {
             settings.javaScriptEnabled = true
-            settings.domStorageEnabled = true // Hanya untuk migrasi data versi lama.
+            settings.domStorageEnabled = true // Dipakai untuk migrasi satu kali dari versi lama.
             settings.allowFileAccess = true
             settings.allowContentAccess = false
             settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
@@ -60,7 +62,10 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
-        if (this::web.isInitialized) {\n            web.removeJavascriptInterface("AndroidBridge")\n            web.destroy()\n        }
+        if (this::web.isInitialized) {
+            web.removeJavascriptInterface("AndroidBridge")
+            web.destroy()
+        }
         super.onDestroy()
     }
 }

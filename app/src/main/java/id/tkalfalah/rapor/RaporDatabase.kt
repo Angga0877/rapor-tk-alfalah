@@ -8,7 +8,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
 
-class RaporDatabase(context: Context) : SQLiteOpenHelper(context, "rapor_tk_alfalah.db", null, 1) {
+class RaporDatabase(context: Context) : SQLiteOpenHelper(context, "rapor_tk_alfalah.db", null, 2) {
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("CREATE TABLE students(id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, nis TEXT, group_name TEXT, dob TEXT)")
         db.execSQL("CREATE TABLE assessments(id TEXT PRIMARY KEY NOT NULL, student_id TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE, element TEXT, context_note TEXT, observation TEXT, stimulation TEXT, level TEXT, date TEXT)")
@@ -24,7 +24,24 @@ class RaporDatabase(context: Context) : SQLiteOpenHelper(context, "rapor_tk_alfa
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // Tambahkan migrasi skema terurut saat versi database dinaikkan.
+        if (oldVersion < 2) {
+            db.execSQL("CREATE TABLE assessments_v2(id TEXT PRIMARY KEY NOT NULL, student_id TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE, element TEXT, context_note TEXT, observation TEXT, stimulation TEXT, level TEXT, date TEXT)")
+            db.execSQL("INSERT INTO assessments_v2(id,student_id,element,context_note,observation,stimulation,level,date) SELECT id,student_id,element,context_note,observation,stimulation,level,date FROM assessments")
+            db.execSQL("DROP TABLE assessments")
+            db.execSQL("ALTER TABLE assessments_v2 RENAME TO assessments")
+            db.execSQL("CREATE INDEX idx_assessments_student ON assessments(student_id)")
+
+            db.execSQL("CREATE TABLE growth_v2(id TEXT PRIMARY KEY NOT NULL, student_id TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE, date TEXT, weight TEXT, height TEXT)")
+            db.execSQL("INSERT INTO growth_v2(id,student_id,date,weight,height) SELECT CAST(id AS TEXT),student_id,date,weight,height FROM growth")
+            db.execSQL("DROP TABLE growth")
+            db.execSQL("ALTER TABLE growth_v2 RENAME TO growth")
+            db.execSQL("CREATE INDEX idx_growth_student ON growth(student_id)")
+
+            db.execSQL("CREATE TABLE reports_v2(student_id TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE, period TEXT NOT NULL, auto_description TEXT, teacher_note TEXT, parent_note TEXT, PRIMARY KEY(student_id, period))")
+            db.execSQL("INSERT OR REPLACE INTO reports_v2(student_id,period,auto_description,teacher_note,parent_note) SELECT student_id,COALESCE(period,''),auto_description,teacher_note,parent_note FROM reports")
+            db.execSQL("DROP TABLE reports")
+            db.execSQL("ALTER TABLE reports_v2 RENAME TO reports")
+        }
     }
 
     private fun readRows(db: SQLiteDatabase, sql: String, fields: Array<String>): JSONArray {

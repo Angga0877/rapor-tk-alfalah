@@ -65,9 +65,13 @@ class MainActivity : Activity() {
                 ): Boolean {
                     filePathCallback?.onReceiveValue(null)
                     filePathCallback = callback
+                    val imageSelection = params?.acceptTypes?.any { it.startsWith("image/") } == true
                     val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
                         addCategory(Intent.CATEGORY_OPENABLE)
-                        type = "*/*"
+                        type = if (imageSelection) "image/*" else "*/*"
+                        if (imageSelection && params?.mode == WebChromeClient.FileChooserParams.MODE_OPEN_MULTIPLE) {
+                            putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+                        }
                     }
                     this@MainActivity.startActivityForResult(intent, REQUEST_IMPORT_JSON)
                     return true
@@ -220,7 +224,17 @@ class MainActivity : Activity() {
                 }
             }
         } else if (requestCode == REQUEST_IMPORT_JSON) {
-            val selected = if (resultCode == RESULT_OK) data?.data?.let { arrayOf(it) } else null
+            val selected = if (resultCode == RESULT_OK) {
+                val uris = ArrayList<Uri>()
+                data?.clipData?.let { clip ->
+                    for (i in 0 until clip.itemCount) {
+                        val uri = clip.getItemAt(i).uri
+                        if (!uris.contains(uri)) uris.add(uri)
+                    }
+                }
+                data?.data?.let { uri -> if (!uris.contains(uri)) uris.add(uri) }
+                uris.takeIf { it.isNotEmpty() }?.toTypedArray()
+            } else null
             filePathCallback?.onReceiveValue(selected)
             filePathCallback = null
         } else if (requestCode == REQUEST_EXPORT_JSON) {

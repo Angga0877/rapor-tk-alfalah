@@ -8,7 +8,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
 
-class RaporDatabase(context: Context) : SQLiteOpenHelper(context, "rapor_tk_alfalah.db", null, 3) {
+class RaporDatabase(context: Context) : SQLiteOpenHelper(context, "rapor_tk_alfalah.db", null, 4) {
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("CREATE TABLE students(id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, nis TEXT, group_name TEXT, dob TEXT)")
         db.execSQL("CREATE TABLE assessments(id TEXT PRIMARY KEY NOT NULL, student_id TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE, element TEXT, context_note TEXT, observation TEXT, stimulation TEXT, level TEXT, date TEXT)")
@@ -20,6 +20,8 @@ class RaporDatabase(context: Context) : SQLiteOpenHelper(context, "rapor_tk_alfa
         db.execSQL("CREATE TABLE attendance(id TEXT PRIMARY KEY NOT NULL, student_id TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE, date TEXT NOT NULL, period TEXT NOT NULL, status TEXT NOT NULL)")
         db.execSQL("CREATE UNIQUE INDEX idx_attendance_student_date_period ON attendance(student_id,date,period)")
         db.execSQL("CREATE INDEX idx_attendance_period ON attendance(period)")
+        db.execSQL("CREATE TABLE photo_docs(id TEXT PRIMARY KEY NOT NULL, student_id TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE, period TEXT NOT NULL, date TEXT NOT NULL, title TEXT NOT NULL, caption TEXT, layout TEXT, photos_json TEXT NOT NULL)")
+        db.execSQL("CREATE INDEX idx_photo_docs_student_period ON photo_docs(student_id,period)")
     }
 
     override fun onConfigure(db: SQLiteDatabase) {
@@ -49,6 +51,10 @@ class RaporDatabase(context: Context) : SQLiteOpenHelper(context, "rapor_tk_alfa
             db.execSQL("CREATE TABLE attendance(id TEXT PRIMARY KEY NOT NULL, student_id TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE, date TEXT NOT NULL, period TEXT NOT NULL, status TEXT NOT NULL)")
             db.execSQL("CREATE UNIQUE INDEX idx_attendance_student_date_period ON attendance(student_id,date,period)")
             db.execSQL("CREATE INDEX idx_attendance_period ON attendance(period)")
+        }
+        if (oldVersion < 4) {
+            db.execSQL("CREATE TABLE photo_docs(id TEXT PRIMARY KEY NOT NULL, student_id TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE, period TEXT NOT NULL, date TEXT NOT NULL, title TEXT NOT NULL, caption TEXT, layout TEXT, photos_json TEXT NOT NULL)")
+            db.execSQL("CREATE INDEX idx_photo_docs_student_period ON photo_docs(student_id,period)")
         }
     }
 
@@ -85,6 +91,22 @@ class RaporDatabase(context: Context) : SQLiteOpenHelper(context, "rapor_tk_alfa
         root.put("reports", readRows(db,
             "SELECT student_id,auto_description,teacher_note,parent_note,period FROM reports",
             arrayOf("student", "autoDescription", "teacherNote", "parentNote", "period")))
+        val photoDocs = JSONArray()
+        db.rawQuery("SELECT id,student_id,period,date,title,caption,layout,photos_json FROM photo_docs ORDER BY date,id", null).use { cursor ->
+            while (cursor.moveToNext()) {
+                val row = JSONObject()
+                row.put("id", cursor.getString(0))
+                row.put("student", cursor.getString(1))
+                row.put("period", cursor.getString(2))
+                row.put("date", cursor.getString(3))
+                row.put("title", cursor.getString(4))
+                row.put("caption", cursor.getString(5) ?: "")
+                row.put("layout", cursor.getString(6) ?: "2x2")
+                row.put("photos", try { JSONArray(cursor.getString(7) ?: "[]") } catch (_: Exception) { JSONArray() })
+                photoDocs.put(row)
+            }
+        }
+        root.put("photoDocs", photoDocs)
         val settings = JSONObject()
         db.rawQuery("SELECT setting_key,setting_value FROM settings", null).use { cursor ->
             while (cursor.moveToNext()) settings.put(cursor.getString(0), cursor.getString(1) ?: "")
@@ -102,6 +124,7 @@ class RaporDatabase(context: Context) : SQLiteOpenHelper(context, "rapor_tk_alfa
             val growth = root.optJSONArray("growth") ?: JSONArray()
             val attendance = root.optJSONArray("attendance") ?: JSONArray()
             val reports = root.optJSONArray("reports") ?: JSONArray()
+            val photoDocs = root.optJSONArray("photoDocs") ?: JSONArray()
             val settings = root.optJSONObject("settings") ?: JSONObject()
             val db = writableDatabase
             db.beginTransaction()
@@ -110,6 +133,7 @@ class RaporDatabase(context: Context) : SQLiteOpenHelper(context, "rapor_tk_alfa
                 db.delete("growth", null, null)
                 db.delete("reports", null, null)
                 db.delete("attendance", null, null)
+                db.delete("photo_docs", null, null)
                 db.delete("students", null, null)
                 db.delete("settings", null, null)
 
@@ -159,6 +183,20 @@ class RaporDatabase(context: Context) : SQLiteOpenHelper(context, "rapor_tk_alfa
                         put("status", x.optString("status"))
                     }
                     db.insertOrThrow("attendance", null, v)
+                }
+                for (i in 0 until photoDocs.length()) {
+                    val x = photoDocs.optJSONObject(i) ?: continue
+                    val v = ContentValues().apply {
+                        put("id", x.optString("id"))
+                        put("student_id", x.optString("student"))
+                        put("period", x.optString("period"))
+                        put("date", x.optString("date"))
+                        put("title", x.optString("title"))
+                        put("caption", x.optString("caption"))
+                        put("layout", x.optString("layout", "2x2"))
+                        put("photos_json", (x.optJSONArray("photos") ?: JSONArray()).toString())
+                    }
+                    db.insertOrThrow("photo_docs", null, v)
                 }
                 for (i in 0 until reports.length()) {
                     val x = reports.optJSONObject(i) ?: continue

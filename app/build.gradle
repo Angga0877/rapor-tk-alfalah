@@ -9,8 +9,8 @@ android {
         applicationId 'id.tkalfalah.rapor'
         minSdk 24
         targetSdk 35
-        versionCode 10
-        versionName '0.6.4'
+        versionCode 11
+        versionName '0.6.5'
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
@@ -22,4 +22,24 @@ android {
 dependencies {
     implementation 'androidx.work:work-runtime:2.10.1'
     implementation 'androidx.documentfile:documentfile:1.0.1'
+}
+
+
+// Salin ikon launcher yang dikelola di root repository ke resource Android sebelum build.
+tasks.register('prepareLauncherIcon') {
+    def source = rootProject.file('ikon-launcher.png')
+    def target = file('src/main/res/drawable-nodpi/ic_launcher.png')
+    inputs.file(source)
+    outputs.file(target)
+    doLast {
+        if (!source.isFile()) {
+            throw new GradleException('File ikon-launcher.png tidak ditemukan di root repository.')
+        }
+        target.parentFile.mkdirs()
+        java.nio.file.Files.copy(source.toPath(), target.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+    }
+}
+
+tasks.named('preBuild').configure {
+    dependsOn tasks.named('prepareLauncherIcon')
 }

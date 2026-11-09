@@ -4,6 +4,8 @@
     <application
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
         android:label="E-RAPOR PAUD"
+        android:icon="@drawable/ic_launcher"
+        android:roundIcon="@drawable/ic_launcher"
         android:usesCleartextTraffic="false"
         android:allowBackup="false"
         android:supportsRtl="true">

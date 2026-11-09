@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.Build
+import android.view.View
 import android.print.PrintAttributes
 import android.print.PrintManager
 import android.webkit.JavascriptInterface
@@ -44,6 +46,13 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.statusBarColor = android.graphics.Color.rgb(23, 74, 139)
+        window.navigationBarColor = android.graphics.Color.rgb(245, 248, 253)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            window.decorView.systemUiVisibility =
+                (window.decorView.systemUiVisibility and View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()) or
+                    View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+        }
         database = RaporDatabase(applicationContext)
         web = WebView(this).apply {
             settings.javaScriptEnabled = true

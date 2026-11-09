@@ -293,6 +293,104 @@ function loadReport(){
   $('parentNote').value=r?r.parentNote||'':'';
   $('autoDescription').value=r?r.autoDescription||makeNarrative(a):makeNarrative(a);
 }function saveReport(){if(!$('reportStudent').value)return alert('Pilih siswa.');let period=$('schoolYear').value+' · '+$('semester').value;let old=db.reports.find(x=>x.student===$('reportStudent').value&&x.period===period),r={student:$('reportStudent').value,autoDescription:$('autoDescription').value,teacherNote:$('teacherNote').value,parentNote:$('parentNote').value,period};if(old)Object.assign(old,r);else db.reports.push(r);if(persist())alert('Rapor tersimpan.')}
+
+function compressGalleryFile(file){
+  return new Promise((resolve,reject)=>{
+    if(!file.type||!file.type.startsWith('image/')){reject(new Error('Ada file yang bukan gambar.'));return}
+    if(file.size>15*1024*1024){reject(new Error('Ukuran satu foto maksimal 15 MB.'));return}
+    const reader=new FileReader();
+    reader.onerror=()=>reject(new Error('Gagal membaca foto.'));
+    reader.onload=()=>{
+      const image=new Image();
+      image.onerror=()=>reject(new Error('Foto tidak dapat dibuka oleh perangkat.'));
+      image.onload=()=>{
+        const scale=Math.min(1,1280/Math.max(image.width,image.height));
+        const canvas=document.createElement('canvas');
+        canvas.width=Math.max(1,Math.round(image.width*scale));
+        canvas.height=Math.max(1,Math.round(image.height*scale));
+        const context=canvas.getContext('2d');
+        context.fillStyle='#ffffff';context.fillRect(0,0,canvas.width,canvas.height);
+        context.drawImage(image,0,0,canvas.width,canvas.height);
+        resolve(canvas.toDataURL('image/jpeg',0.76));
+      };
+      image.src=String(reader.result||'');
+    };
+    reader.readAsDataURL(file);
+  });
+}
+async function previewGalleryFiles(event){
+  const files=Array.from(event.target.files||[]);
+  if(!files.length)return;
+  if(files.length>18){alert('Maksimal 18 foto dalam satu dokumentasi. Pilih ulang maksimal 18 foto.');event.target.value='';return}
+  $('galleryPreview').textContent='Memproses foto…';
+  try{pendingGalleryPhotos=await Promise.all(files.map(compressGalleryFile));renderGalleryPreview()}
+  catch(error){pendingGalleryPhotos=[];$('galleryPreview').innerHTML='';alert(error.message||'Gagal memproses foto.')}
+  event.target.value='';
+}
+function renderGalleryPreview(){
+  const layout=$('galleryLayout')?.value||'2x2',cols=Number(layout.split('x')[0])||2;
+  $('galleryPreview').style.gridTemplateColumns='repeat('+cols+',minmax(0,1fr))';
+  $('galleryPreview').innerHTML=pendingGalleryPhotos.map((src,index)=>'<div class="gallery-preview-item"><img src="'+src+'" alt="Pratinjau foto '+(index+1)+'"><button type="button" onclick="removePendingGalleryPhoto('+index+')">Hapus foto</button></div>').join('');
+  if(pendingGalleryPhotos.length)$('galleryPreview').insertAdjacentHTML('afterbegin','<div class="muted" style="grid-column:1/-1">Foto dipilih: '+pendingGalleryPhotos.length+'</div>');
+}
+function removePendingGalleryPhoto(index){pendingGalleryPhotos.splice(index,1);renderGalleryPreview()}
+function renderPhotoDocs(){
+  if(!$('photoDocList'))return;
+  const studentId=$('galleryStudent')?.value;
+  if(!studentId){$('photoDocList').textContent='Pilih peserta didik terlebih dahulu.';return}
+  const period=attendancePeriod();
+  const docs=(db.photoDocs||[]).filter(x=>x.student===studentId&&x.period===period).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  $('photoDocList').innerHTML=docs.length?docs.map(doc=>{
+    const photos=(Array.isArray(doc.photos)?doc.photos:[]).filter(src=>safeImage(src));
+    return '<div class="gallery-doc-item"><div class="gallery-doc-meta"><b>'+esc(doc.title||'Dokumentasi kegiatan')+'</b><div class="muted">'+esc(formatDateID(doc.date))+' · '+photos.length+' foto · '+esc(doc.layout||'2x2')+'</div><div class="gallery-doc-thumbs">'+photos.slice(0,5).map((src,i)=>'<img src="'+src+'" alt="Foto '+(i+1)+'">').join('')+(photos.length>5?'<span class="pill">+'+(photos.length-5)+'</span>':'')+'</div><div class="muted">'+esc(doc.caption||'')+'</div></div><button class="gallery-remove" data-id="'+esc(doc.id)+'" onclick="removePhotoDoc(this.getAttribute(\'data-id\'))">Hapus</button></div>';
+  }).join(''):'Belum ada dokumentasi untuk anak ini pada semester aktif.';
+}
+function savePhotoDoc(){
+  const student=$('galleryStudent').value,date=$('galleryDate').value,title=$('galleryTitle').value.trim();
+  if(!student)return alert('Pilih peserta didik terlebih dahulu.');
+  if(!date)return alert('Pilih tanggal kegiatan.');
+  if(!title)return alert('Isi nama kegiatan.');
+  if(!pendingGalleryPhotos.length)return alert('Pilih minimal satu foto kegiatan.');
+  db.photoDocs.push({id:uid(),student,period:attendancePeriod(),date,title,caption:$('galleryCaption').value.trim(),layout:$('galleryLayout').value,photos:pendingGalleryPhotos.slice()});
+  if(persist()){
+    pendingGalleryPhotos=[];$('galleryTitle').value=$('galleryCaption').value='';$('galleryFiles').value='';renderGalleryPreview();
+    alert('Dokumentasi kegiatan berhasil disimpan untuk anak ini.');
+  }
+}
+function removePhotoDoc(id){
+  if(!confirm('Hapus dokumentasi kegiatan ini beserta seluruh fotonya?'))return;
+  db.photoDocs=db.photoDocs.filter(x=>x.id!==id);persist();
+}
+function formatDateID(value){
+  if(!value)return '-';
+  const date=new Date(value+'T00:00:00');
+  return Number.isNaN(date.getTime())?value:date.toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
+}
+function buildGalleryPrintPages(student,period,school,logo){
+  const docs=(db.photoDocs||[]).filter(x=>x.student===student.id&&x.period===period).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  const logoHtml=logo?'<img class="print-logo" src="'+logo+'" alt="Logo sekolah">':'';
+  const pages=[];
+  docs.forEach(doc=>{
+    const photos=(Array.isArray(doc.photos)?doc.photos:[]).filter(src=>safeImage(src));
+    const layout=['2x2','3x2','3x3'].includes(doc.layout)?doc.layout:'2x2';
+    const parts=layout.split('x').map(Number),cols=parts[0],capacity=parts[0]*parts[1];
+    for(let offset=0;offset<photos.length;offset+=capacity){
+      const pagePhotos=photos.slice(offset,offset+capacity);
+      const pageNo=Math.floor(offset/capacity)+1,totalPages=Math.ceil(photos.length/capacity);
+      const continuation=totalPages>1?' · Halaman '+pageNo+' dari '+totalPages:'';
+      pages.push('<div class="print-page print-gallery-page" data-layout="'+layout+'">'+
+        '<div class="print-school-head">'+logoHtml+'<div><div class="print-school-name">'+esc(school)+'</div><div class="print-school-sub">PORTOFOLIO KEGIATAN PESERTA DIDIK</div></div></div>'+
+        '<div class="print-report-title"><h2>DOKUMENTASI KEGIATAN ANAK</h2><div>'+esc(period)+'</div></div>'+
+        '<table class="print-student-info"><tr><td>Nama peserta didik</td><td>: '+esc(student.name)+'</td></tr><tr><td>Kelompok</td><td>: '+esc(student.group||'-')+'</td></tr></table>'+
+        '<div class="print-section-title">'+esc(doc.title||'Dokumentasi kegiatan')+esc(continuation)+'</div>'+
+        '<div class="muted">Tanggal kegiatan: '+esc(formatDateID(doc.date))+'</div>'+
+        '<div class="print-photo-grid" style="grid-template-columns:repeat('+cols+',minmax(0,1fr))">'+pagePhotos.map((src,i)=>'<div class="print-photo-cell"><img src="'+src+'" alt="Dokumentasi foto '+(offset+i+1)+'"></div>').join('')+'</div>'+
+        (doc.caption?'<div class="print-gallery-caption">'+esc(doc.caption)+'</div>':'')+
+        '<div class="print-footer">Dokumentasi individu · '+esc(student.name)+' · E-RAPOR PAUD</div></div>');
+    }
+  });
+  return pages.join('');
+}
 function safeImage(value){return typeof value==='string'&&/^data:image\/(png|jpeg|webp);base64,/i.test(value)?value:''}
 function saveIdentityImage(event,key,previewId){
   const file=event.target.files&&event.target.files[0];if(!file)return;

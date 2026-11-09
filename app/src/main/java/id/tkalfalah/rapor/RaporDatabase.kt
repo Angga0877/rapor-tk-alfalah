@@ -8,7 +8,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
 
-class RaporDatabase(context: Context) : SQLiteOpenHelper(context, "rapor_tk_alfalah.db", null, 2) {
+class RaporDatabase(context: Context) : SQLiteOpenHelper(context, "rapor_tk_alfalah.db", null, 3) {
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("CREATE TABLE students(id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, nis TEXT, group_name TEXT, dob TEXT)")
         db.execSQL("CREATE TABLE assessments(id TEXT PRIMARY KEY NOT NULL, student_id TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE, element TEXT, context_note TEXT, observation TEXT, stimulation TEXT, level TEXT, date TEXT)")
@@ -17,6 +17,9 @@ class RaporDatabase(context: Context) : SQLiteOpenHelper(context, "rapor_tk_alfa
         db.execSQL("CREATE INDEX idx_growth_student ON growth(student_id)")
         db.execSQL("CREATE TABLE reports(student_id TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE, period TEXT NOT NULL, auto_description TEXT, teacher_note TEXT, parent_note TEXT, PRIMARY KEY(student_id, period))")
         db.execSQL("CREATE TABLE settings(setting_key TEXT PRIMARY KEY NOT NULL, setting_value TEXT)")
+        db.execSQL("CREATE TABLE attendance(id TEXT PRIMARY KEY NOT NULL, student_id TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE, date TEXT NOT NULL, period TEXT NOT NULL, status TEXT NOT NULL)")
+        db.execSQL("CREATE UNIQUE INDEX idx_attendance_student_date_period ON attendance(student_id,date,period)")
+        db.execSQL("CREATE INDEX idx_attendance_period ON attendance(period)")
     }
 
     override fun onConfigure(db: SQLiteDatabase) {
@@ -41,6 +44,11 @@ class RaporDatabase(context: Context) : SQLiteOpenHelper(context, "rapor_tk_alfa
             db.execSQL("INSERT OR REPLACE INTO reports_v2(student_id,period,auto_description,teacher_note,parent_note) SELECT student_id,COALESCE(period,''),auto_description,teacher_note,parent_note FROM reports")
             db.execSQL("DROP TABLE reports")
             db.execSQL("ALTER TABLE reports_v2 RENAME TO reports")
+        }
+        if (oldVersion < 3) {
+            db.execSQL("CREATE TABLE attendance(id TEXT PRIMARY KEY NOT NULL, student_id TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE, date TEXT NOT NULL, period TEXT NOT NULL, status TEXT NOT NULL)")
+            db.execSQL("CREATE UNIQUE INDEX idx_attendance_student_date_period ON attendance(student_id,date,period)")
+            db.execSQL("CREATE INDEX idx_attendance_period ON attendance(period)")
         }
     }
 
@@ -71,6 +79,9 @@ class RaporDatabase(context: Context) : SQLiteOpenHelper(context, "rapor_tk_alfa
         root.put("growth", readRows(db,
             "SELECT id,student_id,date,weight,height FROM growth ORDER BY date",
             arrayOf("id", "student", "date", "weight", "height")))
+        root.put("attendance", readRows(db,
+            "SELECT id,student_id,date,period,status FROM attendance ORDER BY date,student_id",
+            arrayOf("id", "student", "date", "period", "status")))
         root.put("reports", readRows(db,
             "SELECT student_id,auto_description,teacher_note,parent_note,period FROM reports",
             arrayOf("student", "autoDescription", "teacherNote", "parentNote", "period")))
@@ -89,6 +100,7 @@ class RaporDatabase(context: Context) : SQLiteOpenHelper(context, "rapor_tk_alfa
             val students = root.optJSONArray("students") ?: JSONArray()
             val assessments = root.optJSONArray("assessments") ?: JSONArray()
             val growth = root.optJSONArray("growth") ?: JSONArray()
+            val attendance = root.optJSONArray("attendance") ?: JSONArray()
             val reports = root.optJSONArray("reports") ?: JSONArray()
             val settings = root.optJSONObject("settings") ?: JSONObject()
             val db = writableDatabase
@@ -97,6 +109,7 @@ class RaporDatabase(context: Context) : SQLiteOpenHelper(context, "rapor_tk_alfa
                 db.delete("assessments", null, null)
                 db.delete("growth", null, null)
                 db.delete("reports", null, null)
+                db.delete("attendance", null, null)
                 db.delete("students", null, null)
                 db.delete("settings", null, null)
 
@@ -135,6 +148,17 @@ class RaporDatabase(context: Context) : SQLiteOpenHelper(context, "rapor_tk_alfa
                         put("height", x.optString("height"))
                     }
                     db.insertOrThrow("growth", null, v)
+                }
+                for (i in 0 until attendance.length()) {
+                    val x = attendance.optJSONObject(i) ?: continue
+                    val v = ContentValues().apply {
+                        put("id", x.optString("id").ifBlank { UUID.randomUUID().toString() })
+                        put("student_id", x.optString("student"))
+                        put("date", x.optString("date"))
+                        put("period", x.optString("period"))
+                        put("status", x.optString("status"))
+                    }
+                    db.insertOrThrow("attendance", null, v)
                 }
                 for (i in 0 until reports.length()) {
                     val x = reports.optJSONObject(i) ?: continue
